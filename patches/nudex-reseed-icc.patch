@@ -1,0 +1,11 @@
+--- a/include/NuDEXStatisticalNucleus.hh
++++ b/include/NuDEXStatisticalNucleus.hh
+@@ -85,7 +85,7 @@
+   void SetBrOption(int BrOption){BROpt=BrOption;}
+   void SetRandom1Seed(unsigned int seed){theRandom1->SetSeed(seed); Rand1seedProvided=true;}
+   void SetRandom2Seed(unsigned int seed){theRandom2->SetSeed(seed); Rand2seedProvided=true;}
+-  void SetRandom3Seed(unsigned int seed){theRandom3->SetSeed(seed); Rand3seedProvided=true;}
++  void SetRandom3Seed(unsigned int seed){theRandom3->SetSeed(seed); if(theICC){theICC->SetRandom4Seed(seed);} Rand3seedProvided=true;}
+   
+   NuDEXRandom* GetRandom3(){return theRandom3;}
+   bool HasBeenInitialized(){return hasBeenInitialized;}

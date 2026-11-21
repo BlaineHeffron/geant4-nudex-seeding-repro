@@ -1,0 +1,57 @@
+diff --git a/source/processes/hadronic/models/nudex/include/private/G4NuDEXStatisticalNucleus.hh b/source/processes/hadronic/models/nudex/include/private/G4NuDEXStatisticalNucleus.hh
+index 9ca809a..1c0f6b3 100644
+--- a/source/processes/hadronic/models/nudex/include/private/G4NuDEXStatisticalNucleus.hh
++++ b/source/processes/hadronic/models/nudex/include/private/G4NuDEXStatisticalNucleus.hh
+@@ -126,7 +126,7 @@ public:
+   void SetBrOption(G4int BrOption){BROpt=BrOption;}
+   void SetRandom1Seed(unsigned int seed){theRandom1->SetSeed(seed); Rand1seedProvided=true;}
+   void SetRandom2Seed(unsigned int seed){theRandom2->SetSeed(seed); Rand2seedProvided=true;}
+-  void SetRandom3Seed(unsigned int seed){theRandom3->SetSeed(seed); Rand3seedProvided=true;}
++  void SetRandom3Seed(unsigned int seed); //also reseeds the internal-conversion generator
+   
+   G4NuDEXRandom* GetRandom3(){return theRandom3;}
+   G4bool HasBeenInitialized(){return hasBeenInitialized;}
+diff --git a/source/processes/hadronic/models/nudex/src/G4NuDEXNeutronCaptureModel.cc b/source/processes/hadronic/models/nudex/src/G4NuDEXNeutronCaptureModel.cc
+index 9677457..a563d36 100644
+--- a/source/processes/hadronic/models/nudex/src/G4NuDEXNeutronCaptureModel.cc
++++ b/source/processes/hadronic/models/nudex/src/G4NuDEXNeutronCaptureModel.cc
+@@ -246,6 +246,10 @@ G4int G4NuDEXNeutronCaptureModel::GenerateNeutronCaptureCascade( G4int theZ, G4i
+   G4double Sn, I0;
+   theStatisticalNucleus[theZA]->GetSnAndI0( Sn, I0 ); Sn *= MeV;  // I0 is the spin of the A-1 nucleus in the g.s.
+   G4double ExcitationEnergy = Sn + (theA-1.0)/(G4double)theA*NeutronEnergy;
++  // Draw the cascade (and internal-conversion) seed from the Geant4 engine, so that cascades
++  // follow the run seed and do not depend on earlier cascades. [1, 900000000] is the
++  // documented seed range of CLHEP::HepJamesRandom::setSeed.
++  theStatisticalNucleus[theZA]->SetRandom3Seed( 1 + (unsigned int)( 899999999.0*G4UniformRand() ) );
+   G4int nPar = theStatisticalNucleus[theZA]->GenerateCascade( InitialLevel, ExcitationEnergy/MeV, pType, pEnergy, pTime );
+   for ( G4int i = 0; i < nPar; i++ ) {
+     pEnergy.at(i) *= MeV;
+@@ -265,8 +269,8 @@ G4int G4NuDEXNeutronCaptureModel::Init( G4int theZA, unsigned int seed1, unsigne
+     if ( BandWidth != 0 ) theStatisticalNucleus[theZA]->SetBandWidth( BandWidth );
+     theStatisticalNucleus[theZA]->SetBrOption( BrOption );
+     if ( seed1 > 0 ) theStatisticalNucleus[theZA]->SetRandom1Seed( seed1 );
+-    if ( seed2 > 0 ) theStatisticalNucleus[theZA]->SetRandom1Seed( seed2 );
+-    if ( seed3 > 0 ) theStatisticalNucleus[theZA]->SetRandom1Seed( seed3 );
++    if ( seed2 > 0 ) theStatisticalNucleus[theZA]->SetRandom2Seed( seed2 );
++    if ( seed3 > 0 ) theStatisticalNucleus[theZA]->SetRandom3Seed( seed3 );
+     G4int check = theStatisticalNucleus[theZA]->Init( NuDEXLibDirectory.c_str() );
+     if ( check < 0 ) {
+       HasData[theZA] = -1;
+diff --git a/source/processes/hadronic/models/nudex/src/G4NuDEXStatisticalNucleus.cc b/source/processes/hadronic/models/nudex/src/G4NuDEXStatisticalNucleus.cc
+index ea0e287..37e6697 100644
+--- a/source/processes/hadronic/models/nudex/src/G4NuDEXStatisticalNucleus.cc
++++ b/source/processes/hadronic/models/nudex/src/G4NuDEXStatisticalNucleus.cc
+@@ -132,6 +132,13 @@ void G4NuDEXStatisticalNucleus::SetSomeInitalParameters(G4int LDtype,G4int PSFFl
+ 
+ 
+ 
++void G4NuDEXStatisticalNucleus::SetRandom3Seed(unsigned int seed){
++  theRandom3->SetSeed(seed);
++  if(theICC){theICC->SetRandom4Seed(seed);} //the conversion sampling must restart with the cascade
++  Rand3seedProvided=true;
++}
++
++
+ G4NuDEXStatisticalNucleus::~G4NuDEXStatisticalNucleus(){
+ 
+   if(theLevels!=0){delete [] theLevels;}
